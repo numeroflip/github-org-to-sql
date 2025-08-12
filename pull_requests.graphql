@@ -1,0 +1,38 @@
+query GetPullRequests($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) {
+    pullRequests(first: 100, states: [OPEN, CLOSED, MERGED]) {
+      nodes {
+        number
+        title
+        state
+        author {
+          login
+        }
+        createdAt
+        mergedAt
+        mergedBy {
+          login
+        }
+        assignees(first: 5) {
+          nodes {
+            login
+          }
+        }
+        reviewRequests(first: 5) {
+          nodes {
+            requestedReviewer {
+              ... on User {
+                login
+              }
+            }
+          }
+        }
+        comments {
+          totalCount
+        }
+        additions
+        deletions
+      }
+    }
+  }
+} 
