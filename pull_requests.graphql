@@ -1,6 +1,10 @@
-query GetPullRequests($owner: String!, $name: String!) {
+query GetPullRequests($owner: String!, $name: String!, $endCursor: String) {
   repository(owner: $owner, name: $name) {
-    pullRequests(first: 100, states: [OPEN, CLOSED, MERGED]) {
+    pullRequests(first: 100, after: $endCursor, states: [OPEN, CLOSED, MERGED]) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
       nodes {
         number
         title
@@ -27,12 +31,27 @@ query GetPullRequests($owner: String!, $name: String!) {
             }
           }
         }
-        comments {
+        reviews(first: 50) {
           totalCount
+          nodes {
+            author {
+              login
+            }
+            state
+            submittedAt
+          }
+        }
+        comments(first: 50) {
+          totalCount
+          nodes {
+            author {
+              login
+            }
+          }
         }
         additions
         deletions
       }
     }
   }
-} 
+}

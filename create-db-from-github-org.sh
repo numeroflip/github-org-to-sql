@@ -24,6 +24,7 @@ fi
 
 echo "Creating a database..."
 
+[ -f "$ORG_NAME.db" ] && rm "$ORG_NAME.db"
 duckdb $ORG_NAME.db < create_tables.sql
 
 echo "Database created successfully: $ORG_NAME.db"

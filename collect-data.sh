@@ -47,8 +47,10 @@ REPO_COUNT=$(tail -n +2 repos.csv | wc -l)
 echo "✅ Found $REPO_COUNT repositories"
 
 # Initialize CSV files with headers
-echo "repo_name,sha,author_name,author_email,committer_name,committer_email,message,date" > commits.csv
-echo "repo_name,number,title,state,author,created_at,merged_at,merged_by,assignees,requested_reviewers,comments,additions,deletions" > pull_requests.csv
+echo "repo_name,sha,author_name,author_email,author_login,committer_name,committer_email,committer_login,message,date" > commits.csv
+echo "repo_name,number,title,state,author,created_at,merged_at,merged_by,assignees,requested_reviewers,comments,additions,deletions,comment_authors" > pull_requests.csv
+echo "repo_name,pr_number,comment_id,author,body,created_at,updated_at" > pr_comments.csv
+echo "repo_name,pr_number,reviewer,state,submitted_at" > reviews.csv
 
 # Process each repository
 CURRENT_REPO=0
@@ -66,30 +68,48 @@ while IFS=, read -r name full_name description language stars forks created_at u
     
     echo "📦 Processing repository $CURRENT_REPO/$REPO_COUNT: $REPO_NAME"
     
-    # Get commits for this repository
-    if gh api "repos/$REPO_FULL_NAME/commits" --jq '. | length' > /dev/null 2>&1; then
-        gh api "repos/$REPO_FULL_NAME/commits" \
-            --paginate \
-            --template '{{range .}}{{printf "%q" "'$REPO_NAME'"}},{{printf "%q" .sha}},{{printf "%q" .commit.author.name}},{{printf "%q" .commit.author.email}},{{printf "%q" .commit.committer.name}},{{printf "%q" .commit.committer.email}},{{printf "%q" .commit.message}},{{printf "%q" .commit.author.date}}{{"\n"}}{{end}}' \
-            >> commits.csv 2>/dev/null
-    else
-        echo "  ⚠️  Repository $REPO_NAME is empty or could not fetch commits"
-    fi
-    
     # Extract owner and repo name
     REPO_OWNER=$(echo "$REPO_FULL_NAME" | cut -d'/' -f1)
     REPO_NAME_ONLY=$(echo "$REPO_FULL_NAME" | cut -d'/' -f2)
     
-    # GraphQL query using gh's template system
-    gh api graphql \
-        --field owner="$REPO_OWNER" \
-        --field name="$REPO_NAME_ONLY" \
-        --field query="$(cat ../pull_requests.graphql)" \
-        --template '{{range .data.repository.pullRequests.nodes}}{{printf "%q" "'$REPO_NAME'"}},{{.number}},{{printf "%q" .title}},{{printf "%q" .state}},{{if .author}}{{printf "%q" .author.login}}{{else}}{{printf "%q" ""}}{{end}},{{printf "%q" .createdAt}},{{if .mergedAt}}{{printf "%q" .mergedAt}}{{else}}{{printf "%q" ""}}{{end}},{{if .mergedBy}}{{printf "%q" .mergedBy.login}}{{else}}{{printf "%q" ""}}{{end}},{{if .assignees.nodes}}"{{range $i, $a := .assignees.nodes}}{{if $i}},{{end}}{{$a.login}}{{end}}"{{else}}{{printf "%q" ""}}{{end}},{{if .reviewRequests.nodes}}"{{range $i, $r := .reviewRequests.nodes}}{{if $i}},{{end}}{{if $r.requestedReviewer.login}}{{$r.requestedReviewer.login}}{{end}}{{end}}"{{else}}{{printf "%q" ""}}{{end}},{{.comments.totalCount}},{{.additions}},{{.deletions}}{{"\n"}}{{end}}' \
-        >> pull_requests.csv 2>/dev/null || echo "  ⚠️  GraphQL request failed for $REPO_NAME"
+
     
-    # Rate limiting - pause briefly between repositories
-    sleep 0.5
+    # Get commits for this repository
+    IS_EMPTY=$(gh api graphql \
+      --field owner="$REPO_OWNER" \
+      --field name="$REPO_NAME_ONLY" \
+      --field query='query($owner:String!, $name:String!) { repository(owner:$owner, name:$name) { isEmpty } }' \
+      --jq '.data.repository.isEmpty' 2>/dev/null || echo "false")
+
+    if [ "$IS_EMPTY" = "true" ]; then
+        echo "  ⚠️  Repository $REPO_NAME has no commits (empty)"
+    else
+        if ! gh api "repos/$REPO_FULL_NAME/commits?per_page=100" \
+            --paginate \
+            --template '{{range .}}{{printf "%q" "'$REPO_NAME'"}},{{printf "%q" .sha}},{{printf "%q" .commit.author.name}},{{printf "%q" .commit.author.email}},{{if .author}}{{printf "%q" .author.login}}{{else}}{{printf "%q" ""}}{{end}},{{printf "%q" .commit.committer.name}},{{printf "%q" .commit.committer.email}},{{if .committer}}{{printf "%q" .committer.login}}{{else}}{{printf "%q" ""}}{{end}},{{printf "%q" .commit.message}},{{printf "%q" .commit.author.date}}{{"\n"}}{{end}}' >> commits.csv 2>/dev/null; then
+            echo "  ⚠️  Could not fetch commits for $REPO_NAME (permissions/rate limit?)"
+        fi
+    fi
+
+
+   # GraphQL query for pull requests using a single request, then map to two CSVs
+TMP_JSON="$(mktemp)"
+if gh api graphql \
+  --paginate \
+  --field owner="$REPO_OWNER" \
+  --field name="$REPO_NAME_ONLY" \
+  --field query="$(cat ../pull_requests.graphql)" > "$TMP_JSON" 2>/dev/null; then
+  # Pull Requests
+  jq -r --arg repo "$REPO_NAME" -s '[.[] | .data.repository.pullRequests.nodes[]] | .[] | [ $repo, .number, .title, .state, (.author.login // ""), .createdAt, (.mergedAt // ""), ((.mergedBy.login) // ""), (((.assignees.nodes // []) | map(.login)) | join(",")), (((.reviewRequests.nodes // []) | map(.requestedReviewer.login) | map(select(. != null))) | join(",")), (.comments.totalCount // 0), (.additions // 0), (.deletions // 0), (((.comments.nodes // []) | map(.author.login) | map(select(. != null))) | join(";")) ] | @csv' "$TMP_JSON" >> pull_requests.csv
+  # Reviews
+  jq -r --arg repo "$REPO_NAME" -s '[.[] | .data.repository.pullRequests.nodes[]] | .[] as $pr | ($pr.reviews.nodes // [])[] | select(.author != null) | [ $repo, ($pr.number), .author.login, .state, .submittedAt ] | @csv' "$TMP_JSON" >> reviews.csv
+else
+  echo "  ⚠️  GraphQL request failed for $REPO_NAME"
+fi
+rm -f "$TMP_JSON"
+
+# Rate limiting - pause briefly between repositories
+sleep 0.5
     
 done < repos.csv
 
@@ -102,10 +122,12 @@ echo "📊 Data Summary:"
 echo "Repositories: $(tail -n +2 repos.csv | wc -l)"
 echo "Commits: $(tail -n +2 commits.csv | wc -l)"
 echo "Pull Requests: $(tail -n +2 pull_requests.csv | wc -l)"
+echo "Reviews: $(tail -n +2 reviews.csv | wc -l)"
 
 echo ""
 echo "📁 Generated files:"
 echo "  - repos.csv"
 echo "  - commits.csv" 
 echo "  - pull_requests.csv"
+echo "  - reviews.csv"
 echo ""
