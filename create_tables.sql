@@ -18,11 +18,7 @@ CREATE TABLE IF NOT EXISTS repos (
 CREATE TABLE IF NOT EXISTS commits (
     repo_name VARCHAR NOT NULL,
     sha VARCHAR NOT NULL,
-    author_name VARCHAR,
-    author_email VARCHAR,
     author_login VARCHAR,
-    committer_name VARCHAR,
-    committer_email VARCHAR,
     committer_login VARCHAR,
     message TEXT,
     date TIMESTAMP,
@@ -40,7 +36,7 @@ CREATE TABLE IF NOT EXISTS pull_requests (
     merged_at TIMESTAMP,
     merged_by VARCHAR,
     assignees VARCHAR,
-    requested_reviewers VARCHAR,
+    requested_reviewers VARCHAR, 
     comments INTEGER,
     additions INTEGER,
     deletions INTEGER,
@@ -80,7 +76,6 @@ COPY reviews FROM 'data/reviews.csv' (HEADER);
 
 -- Create useful indexes
 CREATE INDEX IF NOT EXISTS idx_commits_repo_name ON commits(repo_name);
-CREATE INDEX IF NOT EXISTS idx_commits_author_name ON commits(author_name);
 CREATE INDEX IF NOT EXISTS idx_commits_author_login ON commits(author_login);
 CREATE INDEX IF NOT EXISTS idx_commits_committer_login ON commits(committer_login);
 CREATE INDEX IF NOT EXISTS idx_commits_date ON commits(date);
@@ -107,7 +102,96 @@ SELECT 'Sample repositories:' as info;
 SELECT name, language, stargazers_count, forks_count FROM repos ORDER BY stargazers_count DESC LIMIT 5;
 
 SELECT 'Sample commits:' as info;
-SELECT repo_name, author_name, author_login, LEFT(message, 50) || '...' as message_preview, date FROM commits ORDER BY date DESC LIMIT 5;
+SELECT repo_name,  author_login, LEFT(message, 50) || '...' as message_preview, date FROM commits ORDER BY date DESC LIMIT 5;
 
 SELECT 'Sample pull requests:' as info;  
 SELECT repo_name, number, author, state, merged_by FROM pull_requests ORDER BY created_at DESC LIMIT 5; 
+
+
+CREATE VIEW IF NOT EXISTS pr_metrics AS
+WITH pr_approvals AS (
+    SELECT 
+        repo_name,
+        pr_number,
+        COUNT(*) FILTER (WHERE state = 'APPROVED') as approval_count
+    FROM reviews
+    GROUP BY repo_name, pr_number
+),
+pr_self_approvals AS (
+    SELECT 
+        pr.repo_name,
+        pr.number as pr_number,
+        COUNT(*) FILTER (WHERE r.state = 'APPROVED' AND r.reviewer = pr.author) as self_approval_count
+    FROM pull_requests pr
+    LEFT JOIN reviews r ON pr.repo_name = r.repo_name AND pr.number = r.pr_number
+    GROUP BY pr.repo_name, pr.number, pr.author
+),
+big_pr_threshold AS (
+    SELECT 800 as threshold_lines
+),
+pr_health_metrics AS (
+    SELECT 
+        pr.repo_name,
+        COUNT(*) as total_prs,
+        
+        -- Size metrics
+        COALESCE(AVG(pr.additions + pr.deletions), 0) as avg_line_changes,
+        
+        -- Comment metrics
+        COALESCE(AVG(pr.comments), 0) as avg_comment_count,
+        
+        -- Big PR metrics
+        COUNT(*) FILTER (
+            WHERE (pr.additions + pr.deletions) > (SELECT threshold_lines FROM big_pr_threshold)
+        ) as big_prs,
+        
+        -- Merge metrics
+        COUNT(*) FILTER (WHERE pr.merged_at IS NOT NULL) as merged_prs,
+        
+        -- Approval metrics
+        COUNT(*) FILTER (WHERE pa.approval_count > 0) as approved_prs,
+        
+        -- Self-approval metrics
+        COUNT(*) FILTER (WHERE psa.self_approval_count > 0) as self_approved_prs,
+        
+        -- Merge without approval metrics
+        COUNT(*) FILTER (
+            WHERE pr.merged_at IS NOT NULL 
+            AND (pa.approval_count IS NULL OR pa.approval_count = 0)
+        ) as merged_without_approval
+        
+    FROM pull_requests pr
+    LEFT JOIN pr_approvals pa ON pr.repo_name = pa.repo_name AND pr.number = pa.pr_number
+    LEFT JOIN pr_self_approvals psa ON pr.repo_name = psa.repo_name AND pr.number = psa.pr_number
+    WHERE pr.additions IS NOT NULL AND pr.deletions IS NOT NULL
+    GROUP BY pr.repo_name
+)
+SELECT 
+    r.name as repo_name,
+    COALESCE(phm.total_prs, 0) as pr_count,
+    COALESCE(ROUND(phm.avg_comment_count, 1), 0) as avg_comment_count,
+    COALESCE(ROUND(phm.avg_line_changes, 0), 0) as avg_line_changes,
+    CASE 
+        WHEN phm.total_prs > 0 THEN ROUND((phm.big_prs * 100.0 / phm.total_prs), 1)
+        ELSE 0
+    END as big_change_pct,
+    CASE 
+        WHEN phm.total_prs > 0 THEN ROUND((phm.approved_prs * 100.0 / phm.total_prs), 1)
+        ELSE 0
+    END as approval_rate_pct,
+
+    CASE 
+        WHEN phm.total_prs > 0 THEN ROUND((phm.merged_prs * 100.0 / phm.total_prs), 1)
+        ELSE 0
+    END as merge_rate_pct,
+    CASE 
+        WHEN phm.merged_prs > 0 THEN ROUND((phm.merged_without_approval * 100.0 / phm.merged_prs), 1)
+        ELSE 0
+    END as merge_pct_without_approval
+FROM repos r
+LEFT JOIN pr_health_metrics phm ON r.name = phm.repo_name
+ORDER BY 
+    pr_count DESC,
+    big_change_pct DESC,
+    approval_rate_pct DESC,
+    merge_rate_pct DESC;

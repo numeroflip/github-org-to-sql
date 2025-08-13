@@ -47,7 +47,7 @@ REPO_COUNT=$(tail -n +2 repos.csv | wc -l)
 echo "✅ Found $REPO_COUNT repositories"
 
 # Initialize CSV files with headers
-echo "repo_name,sha,author_name,author_email,author_login,committer_name,committer_email,committer_login,message,date" > commits.csv
+echo "repo_name,sha,author_login,committer_login,message,date" > commits.csv
 echo "repo_name,number,title,state,author,created_at,merged_at,merged_by,assignees,requested_reviewers,comments,additions,deletions,comment_authors" > pull_requests.csv
 echo "repo_name,pr_number,comment_id,author,body,created_at,updated_at" > pr_comments.csv
 echo "repo_name,pr_number,reviewer,state,submitted_at" > reviews.csv
@@ -86,7 +86,7 @@ while IFS=, read -r name full_name description language stars forks created_at u
     else
         if ! gh api "repos/$REPO_FULL_NAME/commits?per_page=100" \
             --paginate \
-            --template '{{range .}}{{printf "%q" "'$REPO_NAME'"}},{{printf "%q" .sha}},{{printf "%q" .commit.author.name}},{{printf "%q" .commit.author.email}},{{if .author}}{{printf "%q" .author.login}}{{else}}{{printf "%q" ""}}{{end}},{{printf "%q" .commit.committer.name}},{{printf "%q" .commit.committer.email}},{{if .committer}}{{printf "%q" .committer.login}}{{else}}{{printf "%q" ""}}{{end}},{{printf "%q" .commit.message}},{{printf "%q" .commit.author.date}}{{"\n"}}{{end}}' >> commits.csv 2>/dev/null; then
+            --template '{{range .}}{{printf "%q" "'$REPO_NAME'"}},{{printf "%q" .sha}},{{if .author}}{{printf "%q" .author.login}}{{else}}{{printf "%q" ""}}{{end}},{{if .committer}}{{printf "%q" .committer.login}}{{else}}{{printf "%q" ""}}{{end}},{{printf "%q" .commit.message}},{{printf "%q" .commit.author.date}}{{"\n"}}{{end}}' >> commits.csv 2>/dev/null; then
             echo "  ⚠️  Could not fetch commits for $REPO_NAME (permissions/rate limit?)"
         fi
     fi

@@ -29,8 +29,5 @@ duckdb $ORG_NAME.db < create_tables.sql
 
 echo "Database created successfully: $ORG_NAME.db"
 
-echo "Cleaning up..."
-
-rm -rf data
 
 echo "Done!. Open the db by running: duckdb $ORG_NAME.db"
