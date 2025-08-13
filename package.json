@@ -6,7 +6,9 @@
   "scripts": {
     "collect-data": "node --experimental-strip-types --env-file=.env src/collect-data.ts",
     "codegen": "graphql-codegen --config codegen.ts",
-    "codegen:watch": "graphql-codegen --config codegen.ts --watch"
+    "db:ui": "docker compose up ui",
+    "db:initialize": "docker compose up db-create",
+    "db:open": "docker run --rm -it -v $(pwd):/w:Z -w /w --entrypoint /bin/bash datacatering/duckdb:v1.3.2 -c  '/duckdb github_org.db'"
   },
   "dependencies": {
     "@octokit/graphql": "^9.0.1",

@@ -5,7 +5,6 @@ import type { PullRequest, Repository } from "./__generated__/types";
 
 
 export const getPullRequests = async (owner: string, repo: string): Promise<PullRequest[]> => {
-  console.log('Getting pull requests for', owner, repo,);
 try {
 
   const response = await github.graphql<{repository: Repository}>(`

@@ -117,16 +117,7 @@ const reviewCsvRows = (repoName: string, n: PullRequest): string[] => {
 };
 
 const main = async () => {
-  const org = process.argv[2];
-  if (!org) {
-    // match bash usage message style
-    
-    console.error("Usage: collect-data ORGANIZATION_NAME");
-    
-    console.error("Example: collect-data duckdb");
-    process.exit(1);
-  }
-
+  const org = GITHUB_ORG;
   
   console.log(`🚀 Collecting data for organization: ${org}`);
 

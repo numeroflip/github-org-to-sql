@@ -5,9 +5,7 @@ A few shell scripts that helps creating an sql database out of a github organiza
 Also includes a few predefined queries, and a script that runs the predefined queries.
 
 ## Prerequisites 
-- [duckdb](https://duckdb.org/docs/installation/?version=stable&environment=cli&platform=macos&download_method=direct)
-
-
+- [docker](https://www.docker.com/get-started/)
 
 ## .env
 Optional:
@@ -17,33 +15,45 @@ You can set the `GITHUB_ORG` variable in an .env, then you can call `./create-db
 GITHUB_ORG=<the org you want to gather the repositories of>
 GITHUB_TOKEN=<your access token>
 ```
+## Usage 
+### a.) `pnpm` based
 
-## 1. Create the csv files 
+Start data collecting, creating csv files
 ```
-pnpm collect-data
+pnpm collect-data 
 ```
-
-## 2. Create the database
-
+Create a .db file out of the gathered csv files
 ```
-duckdb db/create_tables.sql > github_org.db 
-```
-
-
-## 2. Query your data
-
-### Pass a query directly to duckdb
-
-```
-duckdb github_org.db -c "SELECT merged_by, COUNT(*) FROM pull_requests WHERE merged_by IS NOT NULL GROUP BY merged_by ORDER BY COUNT(*) DESC;" 
+pnpm db:initialize
 ```
 
-### Open the duckdb ui
-
+Open the ui, to inspect the database
 ```
-duckdb github_org.db -ui" 
+pnpm db:ui
 ```
 
-### Acess it through a 3rd party
+Open the db (terminal based)
+```
+pnpm db:open
+```
 
-A lot of database explorer software supports duckdb, where the db file can be imported.
+### b.) `docker compose` based
+
+Open the UI (`http://localhost:4213/`), and update the db at the same time
+```
+docker compose up 
+```
+
+Open the UI only
+```
+docker compose up ui
+```
+
+Update the database only
+```
+docker compose up collector db-create
+```
+
+
+
+
