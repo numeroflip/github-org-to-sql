@@ -5,42 +5,45 @@ A few shell scripts that helps creating an sql database out of a github organiza
 Also includes a few predefined queries, and a script that runs the predefined queries.
 
 ## Prerequisites 
-
-- [github cli](https://cli.github.com/) 
-  - You need to be authenticated, and having access to the org 
 - [duckdb](https://duckdb.org/docs/installation/?version=stable&environment=cli&platform=macos&download_method=direct)
-- [jq](https://jqlang.org/download/)
+
 
 
 ## .env
 Optional:
 You can set the `GITHUB_ORG` variable in an .env, then you can call `./create-db-from-github-org.sh` without arguments
 
-## 1. Create the database 
 ```
-./create-db-from-github-org.sh <your-org>
+GITHUB_ORG=<the org you want to gather the repositories of>
+GITHUB_TOKEN=<your access token>
 ```
 
-<your-org> is optional
+## 1. Create the csv files 
+```
+pnpm collect-data
+```
+
+## 2. Create the database
+
+```
+duckdb db/create_tables.sql > github_org.db 
+```
 
 
 ## 2. Query your data
 
-### a.) Run the predefined queries
-```
-./run-queries.sh
-```
-
-### b.) Pass a query directly to duckdb
+### Pass a query directly to duckdb
 
 ```
-duckdb <your-org>.db -c "SELECT merged_by, COUNT(*) FROM pull_requests WHERE merged_by IS NOT NULL GROUP BY merged_by ORDER BY COUNT(*) DESC;" 
+duckdb github_org.db -c "SELECT merged_by, COUNT(*) FROM pull_requests WHERE merged_by IS NOT NULL GROUP BY merged_by ORDER BY COUNT(*) DESC;" 
 ```
 
+### Open the duckdb ui
 
-## Modify, or add queries
+```
+duckdb github_org.db -ui" 
+```
 
-The predefined queries are stored in `/queries`
-They have a structure of `/queries/[scope]/[query-name].sql`
+### Acess it through a 3rd party
 
-Feel free to delete, modify, or add sql queries there, they will appear automatically in `run-queries.sh`
+A lot of database explorer software supports duckdb, where the db file can be imported.

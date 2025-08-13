@@ -1,0 +1,29 @@
+{
+  "name": "github-org-to-sql",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "collect-data": "node --experimental-strip-types --env-file=.env src/collect-data.ts",
+    "codegen": "graphql-codegen --config codegen.ts",
+    "codegen:watch": "graphql-codegen --config codegen.ts --watch"
+  },
+  "dependencies": {
+    "@octokit/graphql": "^9.0.1",
+    "@octokit/plugin-paginate-graphql": "^6.0.0",
+    "@octokit/rest": "^22.0.0",
+    "duckdb": "^1.3.2",
+    "tsx": "^4.20.4"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^5.0.7",
+    "@graphql-codegen/typescript": "^4.1.6",
+    "@graphql-codegen/typescript-operations": "^4.6.1",
+    "@types/node": "^22.5.4",
+    "dotenv": "^17.2.1",
+    "graphql": "^16.11.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  },
+  "packageManager": "pnpm@10.10.0+sha512.d615db246fe70f25dcfea6d8d73dee782ce23e2245e3c4f6f888249fb568149318637dca73c2c5c8ef2a4ca0d5657fb9567188bfab47f566d1ee6ce987815c39"
+}

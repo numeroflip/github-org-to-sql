@@ -1,4 +1,4 @@
-query GetPullRequests($owner: String!, $name: String!, $endCursor: String) {
+query GetPullRequests($owner: String!, $name: String!, $num: Int = 100, $cursor: String) {
   repository(owner: $owner, name: $name) {
     pullRequests(first: 100, after: $endCursor, states: [OPEN, CLOSED, MERGED]) {
       pageInfo {
