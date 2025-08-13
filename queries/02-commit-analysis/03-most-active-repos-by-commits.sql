@@ -2,7 +2,7 @@
 SELECT 
     repo_name,
     COUNT(*) as commit_count,
-    COUNT(DISTINCT author_name) as unique_contributors,
+    COUNT(DISTINCT author_login) as unique_contributors,
     MIN(date) as first_commit,
     MAX(date) as last_commit
 FROM commits 

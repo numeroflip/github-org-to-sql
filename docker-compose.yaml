@@ -1,0 +1,53 @@
+# docker-compose.yml
+version: "3.9"
+
+volumes:
+  duckdb_data:
+
+services:
+  collector:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.collector
+    env_file: .env
+    volumes:
+      - ./data:/app/data:z
+      - ./db:/app/db:ro,z
+    restart: "no"
+
+  db-create:
+    image: datacatering/duckdb:v1.3.2
+    working_dir: /work
+    entrypoint: ["/bin/bash"]
+    command:
+      - -c
+      - "rm -f /work/github_org.db && /duckdb /work/github_org.db < /work/db/create_tables.sql"
+    volumes:
+      - duckdb_data:/work:z
+      - ./db:/work/db:ro,z
+      - ./data:/work/data:ro,z
+    depends_on:
+      collector:
+        condition: service_completed_successfully
+
+    restart: "no"
+
+  ui:
+    image: datacatering/duckdb:v1.3.2
+    working_dir: /work
+    entrypoint: ["/bin/bash"]
+    command:
+      - -c
+      - "/duckdb /work/out/github_org.db -ui"
+    volumes:
+      - duckdb_data:/work/out
+    network_mode: host
+    tty: true
+    stdin_open: true
+    restart: unless-stopped
+
+
+
+
+
+
