@@ -13,6 +13,7 @@ services:
     volumes:
       - .:/work:z
     restart: "no"
+    profiles: ["sync"]
 
   collector:
     build:
@@ -27,6 +28,7 @@ services:
     depends_on:
       prepare:
         condition: service_completed_successfully
+    profiles: ["sync"]
 
   db-create:
     image: datacatering/duckdb:v1.3.2
@@ -45,6 +47,7 @@ services:
       prepare:
         condition: service_completed_successfully
     restart: "no"
+    profiles: ["sync"]
 
   ui:
     image: datacatering/duckdb:v1.3.2
@@ -58,10 +61,27 @@ services:
     network_mode: host
     tty: true
     stdin_open: true
-    depends_on:
-      prepare:
-        condition: service_completed_successfully
     restart: unless-stopped
+    profiles: ["ui"]
+
+  ui-after-sync:
+    image: datacatering/duckdb:v1.3.2
+    working_dir: /work
+    entrypoint: ["/bin/bash"]
+    command:
+      - -c
+      - "/duckdb /work/out/github_org.db -cmd 'call start_ui_server()'"
+    volumes:
+      - ./out:/work/out:z
+    network_mode: host
+    tty: true
+    stdin_open: true
+    restart: unless-stopped
+    depends_on:
+      db-create:
+        condition: service_completed_successfully
+    profiles: ["sync"]
+
 
 
 

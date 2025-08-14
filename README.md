@@ -39,20 +39,16 @@ pnpm db:open
 
 ### b.) `docker compose` based
 
-Open the UI (`http://localhost:4213/`), and update the db at the same time
+Pull the github data, then open the ui
 ```
-docker compose up 
-```
-
-Open the UI only
-```
-docker compose up ui
+docker compose --profile sync up 
 ```
 
-Update the database only
+Open the UI
 ```
-docker compose up collector db-create
+docker compose --profile ui up
 ```
+
 
 
 ## Troubleshoot

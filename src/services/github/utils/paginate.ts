@@ -1,4 +1,9 @@
-import type { PageInfo } from "@octokit/plugin-paginate-graphql/dist-types/page-info";
+import type { PageInfo as PageInfoGenerated } from "../resources/__generated__/types";
+
+export type PageInfo = Pick<PageInfoGenerated, "hasNextPage" | "endCursor"> & {
+  hasNextPage: boolean;
+  endCursor: string | null;
+}
 
 // Generic paginate function that works with any data structure having PageInfo
 export async function paginate<T, P extends PageInfo>(
@@ -12,7 +17,7 @@ export async function paginate<T, P extends PageInfo>(
 
   while (pageInfo && 'hasNextPage' in pageInfo && pageInfo.hasNextPage) {
     try {
-      const page = await fetchPage(pageInfo?.endCursor);
+      const page = await fetchPage(pageInfo?.endCursor ?? null);
       allData.push(...page.data);
       pageInfo = {
         hasNextPage: 'hasNextPage' in page.pageInfo ? page.pageInfo.hasNextPage : false,
