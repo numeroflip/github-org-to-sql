@@ -55,5 +55,11 @@ docker compose up collector db-create
 ```
 
 
+## Troubleshoot
+
+### The UI container exits, and is not available
+We use host networking on the ui container, so on mac you might need to enable host networking: https://docs.docker.com/engine/network/drivers/host/#docker-desktop
+
+
 
 
