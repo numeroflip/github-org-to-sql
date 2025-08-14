@@ -1,14 +1,20 @@
 import { GITHUB_ORG } from "../../../constants.ts";
 import { github } from "../client.ts";
-import type { Repository } from "./__generated__/types";
+import { paginate } from "../utils/paginate.ts";
+import type { Organization, Repository } from "./__generated__/types";
 
 
 export const getRepositories = async () => {
 
-  const response = await github.graphql<RepoResponse>(`
-    query allRepositories($org: String!) {
+  const response = paginate(async (cursor) => {
+    const response = await github.graphql<{ organization: Organization }>(`
+    query allRepositories($org: String!, $cursor: String) {
       organization(login: $org) {
-        repositories(first: 100) {
+        repositories(first: 50, after: $cursor) {
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
           nodes {
             name
             description
@@ -32,22 +38,24 @@ export const getRepositories = async () => {
       }
     }
     `, {
-    org: GITHUB_ORG,
+      org: GITHUB_ORG,
+      cursor
+    });
+
+    const repos = response.organization.repositories.nodes;
+
+    const pageInfo = {
+      hasNextPage: response.organization.repositories.pageInfo?.hasNextPage ?? false,
+      endCursor: response.organization.repositories.pageInfo?.endCursor ?? null
+    }
+
+    return {
+      data: repos ? repos.filter(Boolean) as Repository[] : [],
+      pageInfo
+    }
   });
 
-  const repos = response.organization.repositories.nodes;
-
-  return repos;
-};
-
-export type RepoData = Pick<Repository, "name" | "forkCount" | "createdAt" | "updatedAt" | "stargazerCount" | "primaryLanguage" | "description" | "isEmpty"  | "url" | "isArchived" | "isFork" | "isMirror" | "isPrivate" | "isTemplate" | "isLocked"> 
-
-type RepoResponse = {
-  organization: {
-    repositories: {
-      nodes: RepoData[];
-    };
-  };
+  return response;
 };
 
 

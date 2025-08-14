@@ -1,10 +1,7 @@
-import { Octokit as RestOctokit } from "@octokit/rest";
-import { paginateGraphQL } from "@octokit/plugin-paginate-graphql";
-
-const MyOctokit = RestOctokit.plugin(paginateGraphQL);
+import { Octokit } from "@octokit/rest";
 
 const token = getToken();
-export const github = new MyOctokit({ auth: token });
+export const github = new Octokit({ auth: token });
 
 function getToken(): string {
   const t = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? "";
