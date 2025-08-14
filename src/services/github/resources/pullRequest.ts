@@ -1,13 +1,12 @@
 import { github } from "../client.ts";
-import type { PaginationParams } from "../types.ts";
 import type { PullRequest, Repository } from "./__generated__/types";
 
 
 
 export const getPullRequests = async (owner: string, repo: string): Promise<PullRequest[]> => {
-try {
+  try {
 
-  const response = await github.graphql<{repository: Repository}>(`
+    const response = await github.graphql<{ repository: Repository }>(`
     query GetPullRequests($owner: String!, $name: String!, $num: Int = 100, $cursor: String) {
   repository(owner: $owner, name: $name) {
     pullRequests(first: $num, after: $cursor, states: [OPEN, CLOSED, MERGED]) {
@@ -65,15 +64,15 @@ try {
     }
   }
 }`, {
-  owner,
-  name: repo,
-});
-  const pullRequests = response?.repository?.pullRequests?.nodes ?? [];
-  return pullRequests.filter(Boolean) as PullRequest[];
-} catch (e) {
-  
-  console.error(e);
-  return [];
-}
+      owner,
+      name: repo,
+    });
+    const pullRequests = response?.repository?.pullRequests?.nodes ?? [];
+    return pullRequests.filter(Boolean) as PullRequest[];
+  } catch (e) {
+
+    console.error(e);
+    return [];
+  }
 
 };

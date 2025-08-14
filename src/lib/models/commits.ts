@@ -1,3 +1,6 @@
+import type { CommitItem } from "../../services/github/types.ts";
+import { createCsvLine } from "../utils/csv.ts";
+
 export type CommitRow = {
   repo_name: string;
   sha: string;
@@ -14,4 +17,15 @@ export const COMMITS_KEYS: (keyof CommitRow)[] = [
   "committer_login",
   "message",
   "date",
-] as const; 
+] as const;
+
+export const createCommitCsvLine = (repoName: string, commit: CommitItem) => {
+  return createCsvLine([
+    repoName,
+    commit.sha,
+    commit.commit.author?.name ?? "",
+    commit.commit.committer?.name ?? "",
+    commit.commit.message ?? "",
+    commit.commit.author?.date ?? "",
+  ]);
+};

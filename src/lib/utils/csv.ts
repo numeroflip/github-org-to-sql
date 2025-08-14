@@ -5,7 +5,5 @@ export const csvValue = (v: unknown): string => {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-export const toCsvLine = <T extends Record<string, unknown>>(
-  keys: ReadonlyArray<keyof T & string>,
-  row: T
-): string => keys.map((k) => csvValue(row[k])).join(",") + "\n"; 
+export const createCsvLine = (values: ReadonlyArray<unknown>): string =>
+  values.map(csvValue).join(",") + "\n";

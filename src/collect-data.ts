@@ -1,128 +1,29 @@
 import fs from "fs";
-import fsp from "fs/promises";
 import path from "path";
-import { Octokit, type RestEndpointMethodTypes } from "@octokit/rest";
-import { graphql } from "@octokit/graphql";
+import { GITHUB_ORG } from "./constants.ts";
 import { CSV_HEADERS } from "./lib/models/csv.ts";
-import { getRepositories, type RepoData } from "./services/github/resources/repo.ts";
-import { GITHUB_ORG, GITHUB_TOKEN } from "./constants.ts";
-import { github } from "./services/github/client.ts";
-import type { PullRequest } from "./services/github/resources/__generated__/types.ts";
+import { createPullRequestCsvLine } from "./lib/models/pullRequests.ts";
+import { createRepoCsvLine } from "./lib/models/repos.ts";
+import { createReviewCsvLine } from "./lib/models/reviews.ts";
+import { getCommits } from "./services/github/resources/commits.ts";
 import { getPullRequests } from "./services/github/resources/pullRequest.ts";
-
-
-type RepoListItem = RestEndpointMethodTypes["repos"]["listForOrg"]["response"]["data"][number];
-type CommitItem = RestEndpointMethodTypes["repos"]["listCommits"]["response"]["data"][number];
-
+import { getRepositories } from "./services/github/resources/repo.ts";
+import { ensureDir } from "./lib/utils/ensureDir.ts";
+import { writeLine } from "./lib/utils/writeLine.ts";
+import { sleep } from "./lib/utils/sleep.ts";
+import { createCommitCsvLine } from "./lib/models/commits.ts";
 
 const DATA_DIR = "data";
-const COMMITS_PER_PAGE = 100;
-const REPOS_PER_PAGE = 100;
 const SLEEP_BETWEEN_REPOS_MS = 500;
-
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
-const ensureDir = async (dir: string) => {
-  await fsp.mkdir(dir, { recursive: true });
-};
-
-const csvValue = (v: unknown): string => {
-  const s = String(v ?? "");
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
-
-const csvLine = (values: ReadonlyArray<unknown>): string =>
-  values.map(csvValue).join(",") + "\n";
-
-const writeLine = (ws: fs.WriteStream, line: string) => {
-  if (!ws.write(line)) {
-    return new Promise<void>((resolve) => ws.once("drain", resolve));
-  }
-  return Promise.resolve();
-};
-
-const repoCsvRow = (r: RepoData): string => {
-  return csvLine([
-    r.name,
-    `${GITHUB_ORG}/${r.name}`,
-    r.description ?? "",
-    r.primaryLanguage?.name ?? "",
-    r.stargazerCount,
-    r.forkCount,
-    r.createdAt,
-    r.updatedAt,
-    r.url,
-  ]);
-};
-
-
-const commitCsvRow = (repoName: string, c: CommitItem): string => {
-  const authorLogin = (c.author && c.author.login) ? c.author.login : "";
-  const committerLogin = (c.committer && c.committer.login) ? c.committer.login : "";
-  const message = c.commit.message ?? "";
-  const date = c.commit.author?.date ?? "";
-  return csvLine([repoName, c.sha, authorLogin, committerLogin, message, date]);
-};
-
-const listCommits = async (
-  owner: string,
-  repo: string
-): Promise<CommitItem[]> => {
-  return github.paginate(github.rest.repos.listCommits, {
-    owner,
-    repo,
-    per_page: COMMITS_PER_PAGE,
-  });
-};
-
-const prCsvRow = (repoName: string, n: PullRequest): string  => {
-  const assignees =
-    n.assignees?.nodes?.map((x) => (x ? x.login : null)).filter(Boolean).join(",") ?? "";
-  const requested =
-    n.reviewRequests?.nodes
-      ?.map((x) => (x?.requestedReviewer && "login" in x.requestedReviewer ? x.requestedReviewer.login : undefined))
-      .filter(Boolean)
-      .join(",") ?? "";
-  const commentAuthors =
-    n.comments?.nodes?.map((x) => (x?.author ? x.author.login : null)).filter(Boolean).join(";") ?? "";
-
-  return csvLine([
-    repoName,
-    n.number,
-    n.title,
-    n.state,
-    n.author?.login ?? "",
-    n.createdAt,
-    n.mergedAt ?? "",
-    n.mergedBy?.login ?? "",
-    assignees,
-    requested,
-    n.comments?.totalCount ?? 0,
-    n.additions ?? 0,
-    n.deletions ?? 0,
-    commentAuthors,
-  ]);
-};
-
-const reviewCsvRows = (repoName: string, n: PullRequest): string[] => {
-  const prNumber = n.number;
-  const nodes = n.reviews?.nodes ?? [];
-  return nodes
-    .map((r) =>
-      r
-        ? csvLine([repoName, prNumber, r.author?.login ?? "", r.state, r.submittedAt ?? ""])
-        : null
-    )
-    .filter((x): x is string => Boolean(x));
-};
 
 const main = async () => {
   const org = GITHUB_ORG;
-  
+
   console.log(`🚀 Collecting data for organization: ${org}`);
 
-  const ghql = graphql.defaults({});
-
+  /**
+   * INITIALIZE CSV FILES
+   */
   await ensureDir(DATA_DIR);
 
   const reposCsv = fs.createWriteStream(path.join(DATA_DIR, "repos.csv"));
@@ -137,21 +38,27 @@ const main = async () => {
     writeLine(reviewsCsv, CSV_HEADERS.reviews + "\n"),
   ]);
 
-  
+  /**
+   * GET REPOSITORIES
+   */
 
   const repos = await getRepositories();
   const repoCount = repos.length;
-  
+
   console.log(`✅ Found ${repoCount} repositories`);
 
-  await Promise.all(repos.map((r) => writeLine(reposCsv, repoCsvRow(r))));
+  await Promise.all(repos.map((repo) => writeLine(reposCsv, createRepoCsvLine(repo))));
 
   let commitsCount = 0;
   let prCount = 0;
   let reviewsCount = 0;
 
 
-  // sequential per-repo to reduce rate-limit risks and match bash pacing
+  /**
+   * PROCESS REPOSITORIES
+   * 
+   * Sequential per-repo to reduce rate-limit risks
+   */
   for (const [index, repo] of repos.entries()) {
     const repoName = repo.name;
     console.log(`📦 Processing repository ${index + 1}/${repoCount}: ${repoName}`);
@@ -162,9 +69,9 @@ const main = async () => {
       console.log(`  ⚠️  Repository ${repoName} has no commits (empty)`);
     } else {
       try {
-        const commits = await listCommits(GITHUB_ORG, repo.name);
+        const commits = await getCommits(GITHUB_ORG, repo.name);
         for (const commit of commits) {
-          await writeLine(commitsCsv, commitCsvRow(repoName, commit));
+          await writeLine(commitsCsv, createCommitCsvLine(repoName, commit));
         }
         commitsCount += commits.length;
       } catch {
@@ -172,15 +79,20 @@ const main = async () => {
       }
     }
 
+    /**
+     * GET PULL REQUESTS
+     */
     try {
       const nodes = await getPullRequests(GITHUB_ORG, repo.name);
-      const prLines = nodes.map((n) => n ? prCsvRow(repoName, n) : null).filter((x): x is string => Boolean(x));
+      const prLines = nodes.map((n) => n ? createPullRequestCsvLine(repoName, n) : null).filter((x): x is string => Boolean(x));
+
       for (const line of prLines) {
         await writeLine(pullRequestsCsv, line);
       }
       prCount += prLines.length;
 
-      const reviewLines = nodes.flatMap((node) => node ? reviewCsvRows(repoName, node) : []);
+
+      const reviewLines = nodes.flatMap((node) => node ? createReviewCsvLine(repoName, node) : []);
       await Promise.all(
         reviewLines.map((line) => writeLine(reviewsCsv, line))
       );
@@ -192,6 +104,10 @@ const main = async () => {
     await sleep(SLEEP_BETWEEN_REPOS_MS);
   }
 
+
+  /**
+   * CLOSE CSV FILES
+   */
   await Promise.all([
     new Promise<void>((r) => reposCsv.end(r)),
     new Promise<void>((r) => commitsCsv.end(r)),
@@ -218,7 +134,6 @@ const main = async () => {
 };
 
 main().catch((err) => {
-  
   console.error(err instanceof Error ? err.message : String(err));
   process.exit(1);
 });
