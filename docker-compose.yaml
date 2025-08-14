@@ -9,11 +9,11 @@ volumes:
 services:
   prepare: 
     image: alpine:latest
-    command: ["mkdir", "-p", "/work/data", "&&", "mkdir", "-p", "/work/out"]
+    command: ["mkdir", "-p", "/work/data", "&&", "mkdir", "-p", "/work/out", "&&", "mkdir", "-p", "/work/.duckdb"]
     volumes:
       - .:/work:z
     restart: "no"
-    profiles: ["sync"]
+    profiles: ["sync", "ui"]
 
   collector:
     build:
@@ -57,11 +57,15 @@ services:
       - -c
       - "/duckdb /work/out/github_org.db -cmd 'call start_ui_server()'"
     volumes:
+      - ./.duckdb:/root/.duckdb/extension_data/:z
       - ./out:/work/out:z
     network_mode: host
     tty: true
     stdin_open: true
     restart: unless-stopped
+    depends_on:
+      prepare:
+        condition: service_completed_successfully
     profiles: ["ui"]
 
   ui-after-sync:
@@ -72,12 +76,15 @@ services:
       - -c
       - "/duckdb /work/out/github_org.db -cmd 'call start_ui_server()'"
     volumes:
+      - ./.duckdb:/root/.duckdb/extension_data/:z
       - ./out:/work/out:z
     network_mode: host
     tty: true
     stdin_open: true
     restart: unless-stopped
     depends_on:
+      prepare:
+        condition: service_completed_successfully
       db-create:
         condition: service_completed_successfully
     profiles: ["sync"]
