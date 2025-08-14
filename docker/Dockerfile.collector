@@ -15,7 +15,6 @@ RUN corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile
 COPY src ./src
 COPY db ./db
 COPY queries ./queries
-COPY data ./data
 RUN touch .env
 
 
