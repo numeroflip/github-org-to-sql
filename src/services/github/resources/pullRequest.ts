@@ -7,7 +7,7 @@ export const getPullRequests = async (owner: string, repo: string): Promise<Pull
   try {
 
     const response = await github.graphql<{ repository: Repository }>(`
-    query GetPullRequests($owner: String!, $name: String!, $num: Int = 100, $cursor: String) {
+    query GetPullRequests($owner: String!, $name: String!, $num: Int = 50, $cursor: String) {
   repository(owner: $owner, name: $name) {
     pullRequests(first: $num, after: $cursor, states: [OPEN, CLOSED, MERGED]) {
       pageInfo {
