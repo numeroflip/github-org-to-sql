@@ -105,17 +105,57 @@ CREATE INDEX IF NOT EXISTS idx_reviews_reviewer ON reviews(reviewer);
 -- -------------------------------------------------
 -- ------------SUMMARY ---------------------------
 -- -------------------------------------------------
-SELECT 'Database Creation Complete!' as status;
-SELECT 'Repositories loaded: ' || COUNT(*) as summary FROM repos;
-SELECT 'Commits loaded: ' || COUNT(*) as summary FROM commits;
-SELECT 'Pull requests loaded: ' || COUNT(*) as summary FROM pull_requests;
 
--- Show sample data
-SELECT 'Sample repositories:' as info;
-SELECT name, language, stargazers_count, forks_count FROM repos ORDER BY stargazers_count DESC LIMIT 5;
+-- Configure output format
+.headers off
+.mode list
 
-SELECT 'Sample commits:' as info;
-SELECT repo_name,  author_login, LEFT(message, 50) || '...' as message_preview, date FROM commits ORDER BY date DESC LIMIT 5;
+.print ""
+.print "================================================="
+.print "[INFO] Database Creation Complete!"
+.print "================================================="
+.print ""
 
-SELECT 'Sample pull requests:' as info;  
-SELECT repo_name, number, author, state, merged_by FROM pull_requests ORDER BY created_at DESC LIMIT 5; 
+-- Use individual SELECT statements for counts
+.print "[SUMMARY] Data loaded:"
+SELECT '  Repositories: ' || COUNT(*) FROM repos;
+SELECT '  Commits: ' || COUNT(*) FROM commits;  
+SELECT '  Pull requests: ' || COUNT(*) FROM pull_requests;
+SELECT '  Reviews: ' || COUNT(*) FROM reviews;
+
+.print ""
+.print "----- SAMPLE DATA -----"
+.print ""
+
+-- Sample repositories
+.print "[REPOS] Sample repositories:"
+SELECT '  • ' || name || ' (' || COALESCE(language, 'Unknown') || ') - ' || stargazers_count || ' stars, ' || forks_count || ' forks'
+FROM repos 
+ORDER BY stargazers_count DESC 
+LIMIT 5;
+
+.print ""
+
+-- Sample commits
+.print "[COMMITS] Recent commits:"
+SELECT '  • [' || repo_name || '] ' || author_login || ': ' || LEFT(message, 40) || '...'
+FROM commits 
+ORDER BY date DESC 
+LIMIT 5;
+
+.print ""
+
+-- Sample pull requests  
+.print "[PULL_REQUESTS] Recent pull requests:"
+SELECT '  • [' || repo_name || '] #' || number || ' by ' || author || ' (' || state || ')'
+FROM pull_requests 
+ORDER BY created_at DESC 
+LIMIT 5;
+
+.print ""
+.print "================================================="
+.print "[INFO] Setup complete! Ready to run queries."
+.print "================================================="
+
+-- Reset headers for any subsequent operations
+.headers on
