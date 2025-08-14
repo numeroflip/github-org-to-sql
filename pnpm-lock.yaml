@@ -11,9 +11,6 @@ importers:
       '@octokit/graphql':
         specifier: ^9.0.1
         version: 9.0.1
-      '@octokit/plugin-paginate-graphql':
-        specifier: ^6.0.0
-        version: 6.0.0(@octokit/core@7.0.3)
       '@octokit/rest':
         specifier: ^22.0.0
         version: 22.0.0
@@ -631,12 +628,6 @@ packages:
 
   '@octokit/openapi-types@25.1.0':
     resolution: {integrity: sha512-idsIggNXUKkk0+BExUn1dQ92sfysJrje03Q0bv0e+KPLrvyqZF8MnBpFz8UNfYDwB3Ie7Z0TByjWfzxt7vseaA==}
-
-  '@octokit/plugin-paginate-graphql@6.0.0':
-    resolution: {integrity: sha512-crfpnIoFiBtRkvPqOyLOsw12XsveYuY2ieP6uYDosoUegBJpSVxGwut9sxUgFFcll3VTOTqpUf8yGd8x1OmAkQ==}
-    engines: {node: '>= 20'}
-    peerDependencies:
-      '@octokit/core': '>=6'
 
   '@octokit/plugin-paginate-rest@13.1.1':
     resolution: {integrity: sha512-q9iQGlZlxAVNRN2jDNskJW/Cafy7/XE52wjZ5TTvyhyOD904Cvx//DNyoO3J/MXJ0ve3rPoNWKEg5iZrisQSuw==}
@@ -2766,10 +2757,6 @@ snapshots:
       universal-user-agent: 7.0.3
 
   '@octokit/openapi-types@25.1.0': {}
-
-  '@octokit/plugin-paginate-graphql@6.0.0(@octokit/core@7.0.3)':
-    dependencies:
-      '@octokit/core': 7.0.3
 
   '@octokit/plugin-paginate-rest@13.1.1(@octokit/core@7.0.3)':
     dependencies:
