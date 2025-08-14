@@ -11,12 +11,8 @@ RUN corepack enable && npm i -g tsx
 COPY package.json pnpm-lock.yaml ./
 RUN corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile
 
-# Copy only what you need at runtime
-COPY src ./src
-COPY db ./db
-COPY queries ./queries
+# Create .env file for runtime (in case it doesn't exist)
 RUN touch .env
-
 
 # Default command: run the collector
 CMD ["pnpm", "collect-data"]
