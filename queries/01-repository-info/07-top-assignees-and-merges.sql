@@ -3,14 +3,14 @@ WITH assignee_list AS (
     SELECT 
         repo_name,
         number,
-        author,
+        author_email,
         state,
         created_at,
         merged_at,
-        merged_by,
-        UNNEST(STRING_SPLIT(assignees, ',')) as assignee
+        merged_by_email,
+        UNNEST(STRING_SPLIT(assignee_emails, ',')) as assignee
     FROM pull_requests 
-    WHERE assignees IS NOT NULL AND assignees != ''
+    WHERE assignee_emails IS NOT NULL AND assignee_emails != ''
 ),
 assignee_stats AS (
     SELECT 
@@ -27,11 +27,11 @@ assignee_stats AS (
 merger_stats AS (
     SELECT 
         repo_name,
-        merged_by,
+        merged_by_email,
         COUNT(*) as total_merged_count
     FROM pull_requests 
-    WHERE merged_by IS NOT NULL AND merged_at IS NOT NULL
-    GROUP BY repo_name, merged_by
+    WHERE merged_by_email IS NOT NULL AND merged_at IS NOT NULL
+    GROUP BY repo_name, merged_by_email
 )
 SELECT 
     a.repo_name,
@@ -42,6 +42,6 @@ SELECT
     a.assigned_merge_rate_percent,
     COALESCE(m.total_merged_count, 0) as total_prs_merged_by_them
 FROM assignee_stats a
-LEFT JOIN merger_stats m ON a.repo_name = m.repo_name AND a.assignee = m.merged_by
+LEFT JOIN merger_stats m ON a.repo_name = m.repo_name AND a.assignee = m.merged_by_email
 WHERE a.assigned_pr_count >= 1
 ORDER BY a.repo_name, a.assigned_pr_count DESC; 

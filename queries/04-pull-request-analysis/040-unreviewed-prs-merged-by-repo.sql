@@ -1,16 +1,20 @@
 -- Authors by repository and how many of their PRs were merged without reviews
 SELECT 
     repo_name,
-    author,
-    COUNT(*) FILTER (WHERE merged_at IS NOT NULL) as total_merged_prs,
-    COUNT(*) FILTER (WHERE merged_at IS NOT NULL AND (requested_reviewers IS NULL OR requested_reviewers = '')) as merged_without_review,
-    COUNT(*) FILTER (WHERE merged_at IS NOT NULL AND requested_reviewers IS NOT NULL AND requested_reviewers != '') as merged_with_review,
+    u.primary_name as author_name,
+    u.github_login,
+    p.author_email,
+    COUNT(*) as total_prs,
+    COUNT(*) FILTER (WHERE merged_at IS NOT NULL AND (requested_reviewer_emails IS NULL OR requested_reviewer_emails = '')) as merged_without_review,
+    COUNT(*) FILTER (WHERE merged_at IS NOT NULL AND requested_reviewer_emails IS NOT NULL AND requested_reviewer_emails != '') as merged_with_review,
+    COUNT(*) FILTER (WHERE merged_at IS NOT NULL) as total_merged,
     ROUND(
-        COUNT(*) FILTER (WHERE merged_at IS NOT NULL AND (requested_reviewers IS NULL OR requested_reviewers = '')) * 100.0 / 
-        NULLIF(COUNT(*) FILTER (WHERE merged_at IS NOT NULL), 0), 2
-    ) as percent_merged_without_review
-FROM pull_requests 
-WHERE author IS NOT NULL
-GROUP BY repo_name, author 
-HAVING total_merged_prs > 0
-ORDER BY repo_name, merged_without_review DESC, total_merged_prs DESC;
+        COUNT(*) FILTER (WHERE merged_at IS NOT NULL AND (requested_reviewer_emails IS NULL OR requested_reviewer_emails = '')) * 100.0 /
+        NULLIF(COUNT(*) FILTER (WHERE merged_at IS NOT NULL), 0), 
+        2
+    ) as pct_merged_without_review
+FROM pull_requests p
+LEFT JOIN users u ON p.author_email = u.email
+WHERE p.author_email IS NOT NULL
+GROUP BY repo_name, p.author_email, u.primary_name, u.github_login
+ORDER BY repo_name, total_merged DESC;

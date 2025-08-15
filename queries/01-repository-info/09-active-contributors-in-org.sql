@@ -2,46 +2,46 @@
 -- Shows all contributors across commits, PRs, merges, and reviews who were active in the last 30 days
 WITH recent_committers AS (
     SELECT 
-        author_login as contributor,
+        author_email as contributor,
         'Committer' as role_type,
         COUNT(*) as activity_count,
         COUNT(DISTINCT repo_name) as repos_count,
         MIN(date) as first_activity,
         MAX(date) as last_activity
     FROM commits 
-    WHERE author_login IS NOT NULL 
-        AND author_login != ''
+    WHERE author_email IS NOT NULL 
+        AND author_email != ''
         AND date >= CURRENT_DATE - INTERVAL '30 days'
-    GROUP BY author_login
+    GROUP BY author_email
 ),
 recent_pr_creators AS (
     SELECT 
-        author as contributor,
+        author_email as contributor,
         'PR Creator' as role_type,
         COUNT(*) as activity_count,
         COUNT(DISTINCT repo_name) as repos_count,
         MIN(created_at) as first_activity,
         MAX(created_at) as last_activity
     FROM pull_requests 
-    WHERE author IS NOT NULL 
-        AND author != ''
+    WHERE author_email IS NOT NULL 
+        AND author_email != ''
         AND created_at >= CURRENT_DATE - INTERVAL '30 days'
-    GROUP BY author
+    GROUP BY author_email
 ),
 recent_pr_mergers AS (
     SELECT 
-        merged_by as contributor,
+        merged_by_email as contributor,
         'PR Merger' as role_type,
         COUNT(*) as activity_count,
         COUNT(DISTINCT repo_name) as repos_count,
         MIN(merged_at) as first_activity,
         MAX(merged_at) as last_activity
     FROM pull_requests 
-    WHERE merged_by IS NOT NULL 
-        AND merged_by != ''
+    WHERE merged_by_email IS NOT NULL 
+        AND merged_by_email != ''
         AND merged_at IS NOT NULL
         AND merged_at >= CURRENT_DATE - INTERVAL '30 days'
-    GROUP BY merged_by
+    GROUP BY merged_by_email
 ),
 recent_reviewers AS (
     SELECT 

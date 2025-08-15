@@ -1,35 +1,22 @@
--- Who comments the most PRs by repository?
+-- Comment activity by repository and user
 WITH comment_authors AS (
     SELECT 
         repo_name,
         number as pr_number,
-        TRIM(UNNEST(STRING_SPLIT(comment_authors, ';'))) as commenter
+        TRIM(UNNEST(STRING_SPLIT(comment_author_emails, ';'))) as commenter_email
     FROM pull_requests 
-    WHERE comment_authors IS NOT NULL 
-    AND comment_authors != ''
-),
-unique_commenters AS (
-    SELECT DISTINCT
-        repo_name,
-        pr_number,
-        commenter
-    FROM comment_authors
-    WHERE commenter != ''
-),
-repo_pr_counts AS (
-    SELECT 
-        repo_name,
-        COUNT(DISTINCT number) as total_prs_in_repo
-    FROM pull_requests
-    GROUP BY repo_name
+    WHERE comment_author_emails IS NOT NULL
+    AND comment_author_emails != ''
 )
 SELECT 
-    uc.repo_name,
-    uc.commenter,
-    COUNT(DISTINCT uc.pr_number) as prs_commented_on,
-    rpc.total_prs_in_repo,
-    ROUND(COUNT(DISTINCT uc.pr_number) * 100.0 / rpc.total_prs_in_repo, 2) as percent_of_prs_commented
-FROM unique_commenters uc
-JOIN repo_pr_counts rpc ON uc.repo_name = rpc.repo_name
-GROUP BY uc.repo_name, uc.commenter, rpc.total_prs_in_repo
-ORDER BY uc.repo_name, prs_commented_on DESC; 
+    c.repo_name,
+    u.primary_name as commenter_name,
+    u.github_login,
+    c.commenter_email,
+    COUNT(*) as total_comments,
+    COUNT(DISTINCT c.pr_number) as prs_commented_on,
+    ROUND(COUNT(*) * 1.0 / COUNT(DISTINCT c.pr_number), 2) as avg_comments_per_pr
+FROM comment_authors c
+LEFT JOIN users u ON c.commenter_email = u.email
+GROUP BY c.repo_name, c.commenter_email, u.primary_name, u.github_login
+ORDER BY c.repo_name, total_comments DESC; 

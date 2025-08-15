@@ -5,7 +5,7 @@ WITH pr_metrics AS (
         COUNT(*) as total_prs,
         COUNT(*) FILTER (WHERE merged_at IS NOT NULL) as merged_prs,
         COUNT(*) FILTER (WHERE (additions + deletions) > 1000) as large_prs_count,
-        COUNT(*) FILTER (WHERE requested_reviewers IS NOT NULL AND requested_reviewers != '') as prs_with_reviewers,
+        COUNT(*) FILTER (WHERE requested_reviewer_emails IS NOT NULL AND requested_reviewer_emails != '') as prs_with_reviewers,
         COUNT(*) FILTER (WHERE comments = 0) as prs_with_no_comments,
         COALESCE(AVG(DATEDIFF('day', created_at, merged_at)) FILTER (WHERE merged_at IS NOT NULL), 0) as avg_merge_time_days,
         COALESCE(AVG(additions + deletions) FILTER (WHERE additions IS NOT NULL AND deletions IS NOT NULL), 0) as avg_pr_size,

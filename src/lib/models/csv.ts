@@ -3,10 +3,12 @@ import { COMMITS_KEYS } from "./commits.ts";
 import { PR_KEYS } from "./pullRequests.ts";
 import { REPOS_KEYS } from "./repos.ts";
 import { REVIEWS_KEYS } from "./reviews.ts";
+import { USERS_KEYS } from "./users.ts";
 
 export const CSV_HEADERS = {
   repos: createCsvHeader(REPOS_KEYS),
   commits: createCsvHeader(COMMITS_KEYS),
   pullRequests: createCsvHeader(PR_KEYS),
   reviews: createCsvHeader(REVIEWS_KEYS),
+  users: createCsvHeader(USERS_KEYS),
 };

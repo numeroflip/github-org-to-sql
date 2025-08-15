@@ -4,7 +4,7 @@ WITH repo_metrics AS (
         r.name,
         r.forks_count,
         COUNT(DISTINCT c.sha) as commit_count,
-        COUNT(DISTINCT c.author_login) as contributor_count,
+        COUNT(DISTINCT c.author_email) as contributor_count,
         COUNT(DISTINCT pr.number) as pr_count,
         COUNT(DISTINCT pr.number) FILTER (WHERE pr.merged_at IS NOT NULL) as merged_pr_count,
         COALESCE(AVG(DATEDIFF('day', pr.created_at, pr.merged_at)) FILTER (WHERE pr.merged_at IS NOT NULL), 0) as avg_merge_days

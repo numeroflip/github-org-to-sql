@@ -11,10 +11,10 @@ pr_self_approvals AS (
     SELECT 
         pr.repo_name,
         pr.number as pr_number,
-        COUNT(*) FILTER (WHERE r.state = 'APPROVED' AND r.reviewer = pr.author) as self_approval_count
+        COUNT(*) FILTER (WHERE r.state = 'APPROVED' AND r.reviewer = pr.author_email) as self_approval_count
     FROM pull_requests pr
     LEFT JOIN reviews r ON pr.repo_name = r.repo_name AND pr.number = r.pr_number
-    GROUP BY pr.repo_name, pr.number, pr.author
+    GROUP BY pr.repo_name, pr.number, pr.author_email
 ),
 big_pr_threshold AS (
     SELECT 800 as threshold_lines

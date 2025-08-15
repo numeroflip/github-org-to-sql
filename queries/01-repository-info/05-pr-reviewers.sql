@@ -7,9 +7,9 @@ WITH review_requests AS (
     FROM (
         SELECT 
             repo_name,
-            UNNEST(string_split(requested_reviewers, ',')) as reviewer
+            UNNEST(string_split(requested_reviewer_emails, ',')) as reviewer
         FROM pull_requests 
-        WHERE requested_reviewers IS NOT NULL
+        WHERE requested_reviewer_emails IS NOT NULL
     )
     WHERE TRIM(reviewer) != ''
     GROUP BY repo_name, TRIM(reviewer)

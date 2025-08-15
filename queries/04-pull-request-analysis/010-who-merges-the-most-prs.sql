@@ -1,10 +1,16 @@
--- Who merges the most PRs?
+-- Users who merge the most PRs (across all repositories)
 SELECT 
-    merged_by,
-    COUNT(*) as merged_count,
-    AVG(DATEDIFF('day', created_at, merged_at)) as avg_days_to_merge
-FROM pull_requests 
-WHERE merged_by IS NOT NULL AND merged_at IS NOT NULL
-GROUP BY merged_by 
-ORDER BY merged_count DESC 
-LIMIT 15; 
+    u.primary_name as merger_name,
+    u.github_login,
+    p.merged_by_email,
+    COUNT(*) as total_merges,
+    COUNT(DISTINCT p.repo_name) as repos_merged_in,
+    AVG(DATEDIFF('day', p.created_at, p.merged_at)) as avg_days_to_merge,
+    MIN(p.merged_at) as first_merge,
+    MAX(p.merged_at) as latest_merge
+FROM pull_requests p
+LEFT JOIN users u ON p.merged_by_email = u.email
+WHERE p.merged_by_email IS NOT NULL AND p.merged_at IS NOT NULL
+GROUP BY p.merged_by_email, u.primary_name, u.github_login
+ORDER BY total_merges DESC
+LIMIT 20; 
